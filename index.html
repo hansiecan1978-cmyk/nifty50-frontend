@@ -478,107 +478,54 @@
         </div>
     </footer>
 
-    <script>
-        // Replace with your Render backend URL
-        const API_BASE_URL = 'https://nifty50-scanner-backend-1.onrender.com';
-        
-        // Global market status
-        let isMarketOpen = false;
-        let isAfterHours = false;
-        
-        // Function to check market status
-        function checkMarketStatus() {
-            const now = new Date();
-            const utcHours = now.getUTCHours();
-            const utcMinutes = now.getUTCMinutes();
-            const utcDay = now.getUTCDay();
-            
-            // Convert to IST (UTC+5:30)
-            let istHours = utcHours + 5.5;
-            if (istHours >= 24) {
-                istHours -= 24;
-                // No need to adjust day as market doesn't cross midnight
-            }
-            
-            // Market hours: 9:15 AM to 3:30 PM IST (Monday-Friday)
-            const isWeekday = utcDay >= 1 && utcDay <= 5; // Monday to Friday
-            const marketStart = 9.25; // 9:15 AM = 9.25 hours
-            const marketEnd = 15.5;   // 3:30 PM = 15.5 hours
-            
-            if (isWeekday && istHours >= marketStart && istHours < marketEnd) {
-                return 'open';
-            } else if (isWeekday && (istHours >= marketEnd || istHours < marketStart)) {
-                return 'after-hours';
-            } else {
-                return 'closed';
-            }
+  <script>
+    // Replace with your Render backend URL
+    const API_BASE_URL = 'https://nifty50-scanner-backend-1.onrender.com';
+    
+    // Function to fetch stock data
+    async function fetchStockData() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/stocks`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching real-time data:', error);
+            return generateFallbackData();
         }
+    }
+    
+    // Generate fallback data
+    function generateFallbackData() {
+        const symbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 
+                        'KOTAKBANK', 'SBIN', 'ASIANPAINT', 'AXISBANK', 'BAJFINANCE'];
         
-        // Function to update market status display
-        function updateMarketStatus() {
-            const status = checkMarketStatus();
-            const statusElement = document.getElementById('market-status');
-            const banner = document.getElementById('after-hours-banner');
+        return symbols.map(symbol => {
+            const direction = Math.random() > 0.5 ? "buy" : "sell";
+            const probability = Math.floor(Math.random() * 40) + 50; // 50-90%
+            const price = (Math.random() * 5000 + 100).toFixed(2);
+            const change = (Math.random() * 4 - 2).toFixed(2); // -2% to +2%
             
-            if (status === 'open') {
-                statusElement.className = 'market-status market-open';
-                statusElement.innerHTML = '<i class="fas fa-circle"></i> Market Open';
-                banner.style.display = 'none';
-                isMarketOpen = true;
-                isAfterHours = false;
-            } else if (status === 'after-hours') {
-                statusElement.className = 'market-status after-hours';
-                statusElement.innerHTML = '<i class="fas fa-circle"></i> After-Hours';
-                banner.style.display = 'block';
-                isMarketOpen = false;
-                isAfterHours = true;
-            } else {
-                statusElement.className = 'market-status market-closed';
-                statusElement.innerHTML = '<i class="fas fa-circle"></i> Market Closed';
-                banner.style.display = 'block';
-                isMarketOpen = false;
-                isAfterHours = false;
-            }
-        }
-        
-        // Function to fetch real-time or after-hours data
-        async function fetchStockData() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/stocks`);
-                if (!response.ok) throw new Error('Network response was not ok');
-                let data = await response.json();
-                
-                // If market is closed, modify data for after-hours display
-                if (!isMarketOpen) {
-                    data = data.map(stock => {
-                        // For after-hours, we simulate pre-market predictions
-                        const predictionFactor = Math.random() * 0.4 + 0.8; // 0.8-1.2
-                        const direction = Math.random() > 0.5 ? 'buy' : 'sell';
-                        
-                        return {
-                            ...stock,
-                            price: stock.price * predictionFactor,
-                            change: stock.change * predictionFactor,
-                            probability: Math.min(95, stock.probability * predictionFactor),
-                            direction: direction,
-                            isAfterHours: true
-                        };
-                    });
+            return {
+                symbol,
+                price: parseFloat(price),
+                change: parseFloat(change),
+                volatility: (Math.random() * 3).toFixed(2),
+                probability,
+                direction,
+                indicators: {
+                    roc: direction === "buy" ? (Math.random() * 2).toFixed(2) : (Math.random() * -2).toFixed(2),
+                    macd: direction === "buy" ? (Math.random() * 0.5).toFixed(2) : (Math.random() * -0.5).toFixed(2)
                 }
-                
-                return data;
-            } catch (error) {
-                console.error('Error fetching stock data:', error);
-                return null;
-            }
-        }
+            };
+        });
+    }
+    
+    // Function to render stock cards
+    function renderStocks(stocks) {
+        const container = document.getElementById('results-container');
+        container.innerHTML = '';
         
-        // Function to render stock cards
-        function renderStocks(stocks) {
-            const container = document.getElementById('results-container');
-            container.innerHTML = '';
-            
-            stocks.forEach(stock => {
+        stocks.forEach(stock => {
                 // Determine card style based on market status
                 let cardClass = 'high-prob';
                 let badgeClass = 'high-badge';
